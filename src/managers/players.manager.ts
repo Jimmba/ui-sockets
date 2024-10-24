@@ -1,5 +1,6 @@
 import WebSocket from "ws";
 import { IPlayer, IPlayerRequest, IPlayerResponse } from "../interfaces";
+import { IRoomPlayer } from "./rooms.manager";
 
 export class PlayersManager {
   players: IPlayer[];
@@ -50,6 +51,22 @@ export class PlayersManager {
     }
 
     return this.getData(savedPlayer);
+  }
+
+  getPlayerBySocket(ws: WebSocket): IPlayer {
+    const [player] = this.players.filter((player) => {
+      const { socket } = player;
+      return ws === socket;
+    });
+    return player;
+  }
+
+  getPlayerByName(name: string): IPlayer {
+    const [player] = this.players.filter((player) => {
+      const { name: savedName } = player;
+      return savedName === name;
+    });
+    return player;
   }
 
   disconnect(ws: WebSocket): void {

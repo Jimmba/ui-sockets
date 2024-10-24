@@ -17,7 +17,7 @@ export const sendResponse = <T>(
   data: T
 ) => {
   const response = getResponse(type, data);
-  console.warn(`SEND TYPE: ${type}, MESSAGE ${response}`);
+  console.warn(`[SEND] TYPE: ${type}, MESSAGE ${response}`);
 
   ws.send(response);
 };
