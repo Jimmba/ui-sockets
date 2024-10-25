@@ -4,7 +4,8 @@ export interface IPlayer {
   id: number; //! which should be?
   socket: WebSocket;
   name: string;
-  password: string; //! encode?
+  password: string;
+  wins: number;
 }
 
 export interface IPlayerRequest {

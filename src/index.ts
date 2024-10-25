@@ -22,11 +22,14 @@ const handleRegRequest = (
   return data;
 };
 
-const handleUpdateRoomRequest = (ws: WebSocket): void => {
+const handleUpdateRoomRequest = (): void => {
   const type = MESSAGE_TYPES.UPDATE_ROOM;
   const data = roomsManager.updateRoom();
-  console.log(`update room data `, data);
-  return sendResponse(ws, type, data);
+  playersManager.players.forEach((player) => {
+    const { socket } = player;
+    console.log(`update room data `, data);
+    return sendResponse(socket, type, data);
+  });
 };
 
 const handleCreateRoomRequest = (ws: WebSocket, player: IRoomPlayer): void => {
@@ -42,6 +45,8 @@ const handleAddPlayerToRoomRequest = (
 ): void => {
   // const type = MESSAGE_TYPES.CREATE_ROOM;
   const { roomUsers } = roomsManager.getRoomToStartGame(indexRoom, player); //! show message?
+
+  handleUpdateRoomRequest();
   const type = MESSAGE_TYPES.CREATE_GAME;
 
   const [{ index: index1 }, { index: index2 }] = roomUsers;
@@ -58,6 +63,15 @@ const handleAddPlayerToRoomRequest = (
   // return sendResponse(ws, type, data);
 };
 
+const handleUpdateWinners = () => {
+  const winners = playersManager.getWinners();
+  const type = MESSAGE_TYPES.UPDATE_WINNERS;
+  playersManager.players.forEach((player) => {
+    const { socket } = player;
+    sendResponse(socket, type, winners);
+  });
+};
+
 const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
   const { type, data } = regRequest;
   console.warn(`[GET] TYPE: ${type}, MESSAGE ${data}`);
@@ -66,7 +80,8 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
 
   if (type === MESSAGE_TYPES.REG) {
     handleRegRequest(ws, parsedData);
-    handleUpdateRoomRequest(ws);
+    handleUpdateRoomRequest();
+    handleUpdateWinners();
     return;
   }
 
@@ -74,7 +89,7 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
     const { name, id: index } = playersManager.getPlayerBySocket(ws);
 
     handleCreateRoomRequest(ws, { name, index });
-    handleUpdateRoomRequest(ws);
+    handleUpdateRoomRequest();
     return;
   }
 
@@ -154,6 +169,7 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
       ? enemy.getSurroundingCellsAndReset()
       : [];
 
+    const playerId = game.getActivePlayerIndex();
     playersIndexes.forEach((playersIndex) => {
       const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
       sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
@@ -172,10 +188,15 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
 
       if (isFinished) {
         sendResponse(socket, MESSAGE_TYPES.FINISH, {
-          winPlayer: game.getActivePlayerIndex(),
+          winPlayer: playerId,
         });
       }
     });
+
+    if (isFinished) {
+      playersManager.addWin(playerId);
+      handleUpdateWinners();
+    }
     return;
   }
 

@@ -34,6 +34,7 @@ export class PlayersManager {
         socket: ws,
         name,
         password,
+        wins: 0,
       };
 
       this.players.push(newPlayer);
@@ -77,10 +78,28 @@ export class PlayersManager {
     return player;
   }
 
-  disconnect(ws: WebSocket): void {
-    this.players = this.players.filter((player) => {
-      const { socket } = player;
-      return ws !== socket;
+  addWin(playerId: number): void {
+    this.players.forEach((player) => {
+      const { id } = player;
+      if (playerId === id) {
+        player.wins += 1;
+        return;
+      }
     });
+  }
+
+  getWinners() {
+    return this.players.map((player) => {
+      const { name, wins } = player;
+      return { name, wins };
+    });
+  }
+
+  disconnect(ws: WebSocket): void {
+    // TODO
+    // this.players = this.players.filter((player) => {
+    //   const { socket } = player;
+    //   return ws !== socket;
+    // });
   }
 }
