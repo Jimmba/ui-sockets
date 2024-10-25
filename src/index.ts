@@ -1,9 +1,9 @@
 import { WebSocket, WebSocketServer } from "ws";
 import { IRoomPlayer, PlayersManager, RoomsManager } from "./managers";
 import { IData, IPlayerRequest, IPlayerResponse, IShip } from "./interfaces";
-import { MESSAGE_TYPES } from "./constants";
+import { ATTACK_RESULTS, MESSAGE_TYPES } from "./constants";
 import { sendResponse } from "./helpers";
-import { GameManager } from "./managers/game.manager";
+import { Game, GameManager } from "./managers/game.manager";
 
 const PORT = 3000; //! .env?
 
@@ -80,33 +80,106 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
 
   if (type === MESSAGE_TYPES.ADD_USER_TO_ROOM) {
     const { name, id: index } = playersManager.getPlayerBySocket(ws);
-    const { indexRoom } = parsedData as {
-      indexRoom: number; //! type
-    };
+    const { indexRoom } = parsedData;
     handleAddPlayerToRoomRequest(ws, indexRoom, { name, index });
     return;
   }
 
   if (type === MESSAGE_TYPES.ADD_SHIPS) {
     const { gameId, ships, indexPlayer } = parsedData;
-    gameManager.addShips(gameId, indexPlayer, ships);
+    gameManager.addPlayerShips(gameId, indexPlayer, ships);
     const isStartGame = gameManager.isStartGame(gameId);
     if (!isStartGame) return;
 
-    const game = gameManager.games[gameId];
-    const playersIndexes = Object.keys(game);
-    playersIndexes.forEach((index) => {
-      const playerId = parseInt(index);
-      const { socket } = playersManager.getPlayerSocketByIndex(playerId);
-      const data = game[playerId];
+    const game: Game = gameManager.games[gameId];
+
+    const { player1, player2 } = game.getPlayers();
+    const playersIndexes = [player1.getIndex(), player2.getIndex()];
+    const turnData = {
+      currentPlayer: game.getActivePlayerIndex(),
+    };
+
+    playersIndexes.forEach((playersIndex) => {
+      const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
+      const data = gameManager.getPlayerShips(gameId, playersIndex);
       sendResponse(socket, MESSAGE_TYPES.START_GAME, {
         ships: data,
-        currentPlayerIndex: parseInt(playersIndexes[0]),
+        currentPlayerIndex: game.getActivePlayerIndex(),
       });
+      sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
     });
     return;
   }
 
+  if (type === MESSAGE_TYPES.ATTACK) {
+    const { gameId, x, y, indexPlayer } = parsedData;
+    const game: Game = gameManager.games[gameId];
+    const activePlayer = game.getActivePlayerIndex();
+    if (activePlayer !== indexPlayer) return;
+
+    const enemy = game.getEnemy();
+    const shootResult = enemy.checkShot(x, y);
+
+    const getAttackData = (
+      x: number,
+      y: number,
+      shootResult: ATTACK_RESULTS
+    ) => {
+      return {
+        position: {
+          x,
+          y,
+        },
+        currentPlayer: game.getActivePlayerIndex(),
+        status: shootResult,
+      };
+    };
+
+    const isMissed = shootResult === ATTACK_RESULTS.MISS;
+
+    const attackData = getAttackData(x, y, shootResult);
+    if (isMissed) game.changeActivePlayer();
+    console.log(game.getActivePlayerIndex());
+
+    const turnData = {
+      currentPlayer: game.getActivePlayerIndex(),
+    };
+
+    const isKilled = shootResult === ATTACK_RESULTS.KILLED;
+    const isFinished = isKilled && enemy.isAllShipsKilled();
+
+    const { player1, player2 } = game.getPlayers();
+    const playersIndexes = [player1.getIndex(), player2.getIndex()];
+    const surroundingCells = isKilled
+      ? enemy.getSurroundingCellsAndReset()
+      : [];
+
+    playersIndexes.forEach((playersIndex) => {
+      const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
+      sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
+      sendResponse(socket, MESSAGE_TYPES.ATTACK, attackData);
+
+      if (isKilled) {
+        surroundingCells.forEach((position) => {
+          const { x, y } = position;
+          sendResponse(
+            socket,
+            MESSAGE_TYPES.ATTACK,
+            getAttackData(x, y, ATTACK_RESULTS.MISS)
+          );
+        });
+      }
+
+      if (isFinished) {
+        sendResponse(socket, MESSAGE_TYPES.FINISH, {
+          winPlayer: game.getActivePlayerIndex(),
+        });
+      }
+    });
+    return;
+  }
+
+  console.log(type);
   ws.send("Type is not found"); //! refactor
 };
 

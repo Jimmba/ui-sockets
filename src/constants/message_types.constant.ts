@@ -9,4 +9,9 @@ export enum MESSAGE_TYPES {
 
   "ADD_SHIPS" = "add_ships",
   "START_GAME" = "start_game",
+  "FINISH" = "finish",
+
+  "ATTACK" = "attack",
+  "RANDOM_ATTACK" = "random_attack",
+  "TURN" = "turn",
 }
