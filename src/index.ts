@@ -1,27 +1,15 @@
 import { WebSocket, WebSocketServer } from "ws";
 import { IRoomPlayer, PlayersManager, RoomsManager } from "./managers";
-import { IData, IPlayerRequest, IPlayerResponse } from "./interfaces";
+import { IData, IPlayerRequest, IPlayerResponse, IShip } from "./interfaces";
 import { MESSAGE_TYPES } from "./constants";
 import { sendResponse } from "./helpers";
+import { GameManager } from "./managers/game.manager";
 
 const PORT = 3000; //! .env?
 
 const wss = new WebSocketServer({ port: PORT });
 const playersManager = new PlayersManager();
 const roomsManager = new RoomsManager();
-
-class GameManager {
-  id: number;
-
-  constructor() {
-    this.id = 1;
-  }
-
-  newGame(): number {
-    return this.id++;
-  }
-}
-
 const gameManager = new GameManager();
 
 const handleRegRequest = (
@@ -42,7 +30,6 @@ const handleUpdateRoomRequest = (ws: WebSocket): void => {
 };
 
 const handleCreateRoomRequest = (ws: WebSocket, player: IRoomPlayer): void => {
-  console.log(player);
   // const type = MESSAGE_TYPES.CREATE_ROOM;
   roomsManager.createRoom(player); //! show message?
   // return sendResponse(ws, type, data);
@@ -54,12 +41,11 @@ const handleAddPlayerToRoomRequest = (
   player: IRoomPlayer
 ): void => {
   // const type = MESSAGE_TYPES.CREATE_ROOM;
-  const { roomId, roomUsers } = roomsManager.getRoomToStartGame(
-    indexRoom,
-    player
-  ); //! show message?
+  const { roomUsers } = roomsManager.getRoomToStartGame(indexRoom, player); //! show message?
   const type = MESSAGE_TYPES.CREATE_GAME;
-  const gameId = gameManager.newGame();
+
+  const [{ index: index1 }, { index: index2 }] = roomUsers;
+  const gameId = gameManager.newGame(index1, index2);
 
   roomUsers.forEach((roomUser) => {
     const { name, index } = roomUser;
@@ -98,7 +84,26 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
       indexRoom: number; //! type
     };
     handleAddPlayerToRoomRequest(ws, indexRoom, { name, index });
+    return;
+  }
 
+  if (type === MESSAGE_TYPES.ADD_SHIPS) {
+    const { gameId, ships, indexPlayer } = parsedData;
+    gameManager.addShips(gameId, indexPlayer, ships);
+    const isStartGame = gameManager.isStartGame(gameId);
+    if (!isStartGame) return;
+
+    const game = gameManager.games[gameId];
+    const playersIndexes = Object.keys(game);
+    playersIndexes.forEach((index) => {
+      const playerId = parseInt(index);
+      const { socket } = playersManager.getPlayerSocketByIndex(playerId);
+      const data = game[playerId];
+      sendResponse(socket, MESSAGE_TYPES.START_GAME, {
+        ships: data,
+        currentPlayerIndex: parseInt(playersIndexes[0]),
+      });
+    });
     return;
   }
 

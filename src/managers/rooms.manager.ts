@@ -4,7 +4,7 @@ import { IPlayer, IPlayerRequest, IPlayerResponse } from "../interfaces";
 export interface IRoomPlayer {
   //! replace interfaces
   name: string;
-  index: number | string;
+  index: number; //! types
 }
 
 interface IRoom {
@@ -22,8 +22,7 @@ export class RoomsManager {
   }
 
   updateRoom() {
-    console.log(`rooms is `, this.rooms);
-    return this.rooms;
+    return this.rooms; //! exclude himself
   }
 
   createRoom(player: IRoomPlayer) {
