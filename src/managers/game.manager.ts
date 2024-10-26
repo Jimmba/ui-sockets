@@ -108,9 +108,7 @@ export class Player {
       fieldValue = GAME_FIELD.KILLED;
       this.markShipAsKilled(x, y);
     }
-    console.log(hitResult, x, y);
     this.gameMap[y][x] = fieldValue;
-    console.log(this.gameMap);
   }
 
   addShips(ships: IUserShip[]) {
@@ -206,11 +204,17 @@ export class Game {
   private player1: Player;
   private player2: Player;
   private activePlayerIndex!: number;
+  private gameId: number;
 
-  constructor(index1: number, index2: number) {
+  constructor(index1: number, index2: number, gameId: number) {
     this.player1 = new Player(index1);
     this.player2 = new Player(index2);
+    this.gameId = gameId;
     this.selectActivePlayer(index1, index2);
+  }
+
+  getGameId() {
+    return this.gameId;
   }
 
   private selectActivePlayer(index1: number, index2: number) {
@@ -255,7 +259,7 @@ export class Game {
 }
 
 export class GameManager {
-  games: { [gameId: number]: Game } = {};
+  games: { [gameId: number]: Game } = {}; //! private?
   id: number;
 
   constructor() {
@@ -263,10 +267,9 @@ export class GameManager {
   }
 
   newGame(index1: number, index2: number): number {
-    const game = new Game(index1, index2);
+    const game = new Game(index1, index2, this.id);
 
     this.games[this.id] = game;
-    console.log(this.games);
     return this.id++;
   }
 
@@ -282,6 +285,26 @@ export class GameManager {
     const game = this.games[gameId];
     const res = game.isReadyToStart();
     return res;
+  }
+
+  finishGameWithUserAndReturnWinnerId(playerIndex: number): number {
+    const games = Object.values(this.games);
+    for (let i = 0; i < games.length; i += 1) {
+      const game = games[i];
+      const { player1, player2 } = game.getPlayers();
+      const index1 = player1.getIndex();
+      const index2 = player2.getIndex();
+      const gameId = game.getGameId();
+      if (index1 === playerIndex) {
+        delete this.games[gameId];
+        return index2;
+      }
+      if (index2 === playerIndex) {
+        delete this.games[gameId];
+        return index1;
+      }
+    }
+    return 0;
   }
 
   private getPlayer(gameId: number, playerId: number): Player {

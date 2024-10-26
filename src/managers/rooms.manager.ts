@@ -19,7 +19,7 @@ export class RoomsManager {
   }
 
   updateRoom() {
-    return this.rooms; //! exclude himself
+    return this.rooms;
   }
 
   isRoomExistByUserId(index: number) {
@@ -40,7 +40,6 @@ export class RoomsManager {
       roomUsers: [player],
     };
     this.rooms.push(room);
-    console.log(this.rooms);
   }
 
   removeRoomByUserId(index: number) {
@@ -52,7 +51,6 @@ export class RoomsManager {
         return true;
       }
     });
-    console.log(this.rooms);
   }
 
   isNewUser(index: number, player: IRoomPlayer): boolean {

@@ -95,7 +95,7 @@ const startGame = (gameId: number) => {
     });
 };
 
-const handleAttack = (game: Game, x: number, y: number) => {
+const handleAttack = (game: Game, x: number, y: number): ATTACK_RESULTS => {
   const enemy = game.getEnemy();
   const shootResult = enemy.checkShot(x, y);
   enemy.updateGameMap(shootResult, x, y);
@@ -148,6 +148,8 @@ const handleAttack = (game: Game, x: number, y: number) => {
       }
 
       if (isFinished) {
+        const gameId = game.getGameId();
+        delete gameManager.games[gameId];
         sendResponse(socket, MESSAGE_TYPES.FINISH, {
           winPlayer: playerId,
         });
@@ -163,6 +165,8 @@ const handleAttack = (game: Game, x: number, y: number) => {
     const { x, y } = game.randomAttack();
     handleAttack(game, x, y);
   }
+
+  return shootResult;
 };
 
 const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
@@ -206,6 +210,7 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
   if (type === MESSAGE_TYPES.ATTACK) {
     const { gameId, x, y, indexPlayer } = parsedData;
     const game: Game = gameManager.games[gameId];
+    if (!game) return; // It is possible throw slow frontend.
     const activePlayer = game.getActivePlayerIndex();
     if (activePlayer !== indexPlayer) return;
 
@@ -252,11 +257,20 @@ wss.on("connection", function connection(ws: WebSocket) {
     if (!player) return;
     const { id } = player;
     roomsManager.removeRoomByUserId(id);
-    // gameManager.finishUserGame(id);
+    const playerId = gameManager.finishGameWithUserAndReturnWinnerId(id);
+
+    if (!playerId) return;
+    const { socket } = playersManager.getPlayerByIndex(playerId);
+
+    sendResponse(socket, MESSAGE_TYPES.FINISH, {
+      winPlayer: playerId,
+    });
+    playersManager.addWin(playerId);
+    handleUpdateWinners();
     handleUpdateRoomRequest();
 
     playersManager.removeSocket(id);
-    console.log("Cliend disconnected");
+    console.warn("Client disconnected");
   });
 });
 
