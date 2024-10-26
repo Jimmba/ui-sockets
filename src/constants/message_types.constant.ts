@@ -6,6 +6,7 @@ export enum MESSAGE_TYPES {
   "UPDATE_ROOM" = "update_room",
 
   "CREATE_GAME" = "create_game",
+  "PLAY_WITH_BOT" = "single_play",
 
   "ADD_SHIPS" = "add_ships",
   "START_GAME" = "start_game",

@@ -1,5 +1,6 @@
-import { ATTACK_RESULTS } from "../constants";
-import { GAME_FIELD } from "../constants/game_field.constant";
+import { ATTACK_RESULTS, BOT_ID, GAME_FIELD, SHIP_TYPES } from "../constants";
+import { generateShips } from "../helpers/ship_generator.helper";
+
 import { IPosition, IShip, IUserShip } from "../interfaces";
 export class Player {
   private index: number;
@@ -201,15 +202,22 @@ export class Player {
     return this.aliveShips === 0;
   }
 }
-
 export class Game {
   private player1: Player;
   private player2: Player;
-  private activePlayerIndex: number;
+  private activePlayerIndex!: number;
 
   constructor(index1: number, index2: number) {
     this.player1 = new Player(index1);
     this.player2 = new Player(index2);
+    this.selectActivePlayer(index1, index2);
+  }
+
+  private selectActivePlayer(index1: number, index2: number) {
+    if (index2 === BOT_ID) {
+      this.activePlayerIndex = index1;
+      return;
+    }
     this.activePlayerIndex = Math.random() < 0.5 ? index1 : index2;
   }
 
@@ -260,6 +268,14 @@ export class GameManager {
     this.games[this.id] = game;
     console.log(this.games);
     return this.id++;
+  }
+
+  playWithBot(userId: number) {
+    const gameId = this.newGame(userId, BOT_ID);
+    const botShips = generateShips();
+
+    this.addPlayerShips(gameId, BOT_ID, botShips);
+    return gameId;
   }
 
   isStartGame(gameId: number) {

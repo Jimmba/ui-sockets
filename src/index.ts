@@ -1,7 +1,7 @@
 import { WebSocket, WebSocketServer } from "ws";
 import { IRoomPlayer, PlayersManager, RoomsManager } from "./managers";
 import { IData, IPlayerRequest, IPlayerResponse, IShip } from "./interfaces";
-import { ATTACK_RESULTS, MESSAGE_TYPES } from "./constants";
+import { ATTACK_RESULTS, BOT_ID, MESSAGE_TYPES } from "./constants";
 import { sendResponse } from "./helpers";
 import { Game, GameManager } from "./managers/game.manager";
 
@@ -27,15 +27,12 @@ const handleUpdateRoomRequest = (): void => {
   const data = roomsManager.updateRoom();
   playersManager.players.forEach((player) => {
     const { socket } = player;
-    console.log(`update room data `, data);
     return sendResponse(socket, type, data);
   });
 };
 
 const handleCreateRoomRequest = (ws: WebSocket, player: IRoomPlayer): void => {
-  // const type = MESSAGE_TYPES.CREATE_ROOM;
   roomsManager.createRoom(player); //! show message?
-  // return sendResponse(ws, type, data);
 };
 
 const handleAddPlayerToRoomRequest = (
@@ -43,7 +40,6 @@ const handleAddPlayerToRoomRequest = (
   indexRoom: number,
   player: IRoomPlayer
 ): void => {
-  // const type = MESSAGE_TYPES.CREATE_ROOM;
   const { roomUsers } = roomsManager.getRoomToStartGame(indexRoom, player); //! show message?
 
   handleUpdateRoomRequest();
@@ -60,7 +56,6 @@ const handleAddPlayerToRoomRequest = (
       idPlayer: index,
     });
   });
-  // return sendResponse(ws, type, data);
 };
 
 const handleUpdateWinners = () => {
@@ -81,15 +76,17 @@ const startGame = (gameId: number) => {
     currentPlayer: game.getActivePlayerIndex(),
   };
 
-  playersIndexes.forEach((playersIndex) => {
-    const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
-    const data = gameManager.getPlayerShips(gameId, playersIndex);
-    sendResponse(socket, MESSAGE_TYPES.START_GAME, {
-      ships: data,
-      currentPlayerIndex: game.getActivePlayerIndex(),
+  playersIndexes
+    .filter((index) => index !== BOT_ID)
+    .forEach((playersIndex) => {
+      const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
+      const data = gameManager.getPlayerShips(gameId, playersIndex);
+      sendResponse(socket, MESSAGE_TYPES.START_GAME, {
+        ships: data,
+        currentPlayerIndex: game.getActivePlayerIndex(),
+      });
+      sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
     });
-    sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
-  });
 };
 
 const handleAttack = (game: Game, x: number, y: number) => {
@@ -112,10 +109,10 @@ const handleAttack = (game: Game, x: number, y: number) => {
 
   const attackData = getAttackData(x, y, shootResult);
   if (isMissed) game.changeActivePlayer();
-  console.log(game.getActivePlayerIndex());
+  const currentPlayer = game.getActivePlayerIndex();
 
   const turnData = {
-    currentPlayer: game.getActivePlayerIndex(),
+    currentPlayer,
   };
 
   const isKilled = shootResult === ATTACK_RESULTS.KILLED;
@@ -126,32 +123,39 @@ const handleAttack = (game: Game, x: number, y: number) => {
   const surroundingCells = isKilled ? enemy.getSurroundingCellsAndReset() : [];
 
   const playerId = game.getActivePlayerIndex();
-  playersIndexes.forEach((playersIndex) => {
-    const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
-    sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
-    sendResponse(socket, MESSAGE_TYPES.ATTACK, attackData);
+  playersIndexes
+    .filter((index) => index !== BOT_ID)
+    .forEach((playersIndex) => {
+      const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
+      sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
+      sendResponse(socket, MESSAGE_TYPES.ATTACK, attackData);
 
-    if (isKilled) {
-      surroundingCells.forEach((position) => {
-        const { x, y } = position;
-        sendResponse(
-          socket,
-          MESSAGE_TYPES.ATTACK,
-          getAttackData(x, y, ATTACK_RESULTS.MISS)
-        );
-      });
-    }
+      if (isKilled) {
+        surroundingCells.forEach((position) => {
+          const { x, y } = position;
+          sendResponse(
+            socket,
+            MESSAGE_TYPES.ATTACK,
+            getAttackData(x, y, ATTACK_RESULTS.MISS)
+          );
+        });
+      }
 
-    if (isFinished) {
-      sendResponse(socket, MESSAGE_TYPES.FINISH, {
-        winPlayer: playerId,
-      });
-    }
-  });
+      if (isFinished) {
+        sendResponse(socket, MESSAGE_TYPES.FINISH, {
+          winPlayer: playerId,
+        });
+      }
+    });
 
   if (isFinished) {
     playersManager.addWin(playerId);
     handleUpdateWinners();
+  }
+
+  if (currentPlayer === BOT_ID) {
+    const { x, y } = game.randomAttack();
+    handleAttack(game, x, y);
   }
 };
 
@@ -207,9 +211,21 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
     const game: Game = gameManager.games[gameId];
     const activePlayer = game.getActivePlayerIndex();
     if (activePlayer !== indexPlayer) return;
+
     const { x, y } = game.randomAttack();
-    console.log(`random attack `, x, y);
     handleAttack(game, x, y);
+    return;
+  }
+
+  if (type === MESSAGE_TYPES.PLAY_WITH_BOT) {
+    const { id } = playersManager.getPlayerBySocket(ws);
+    // const [{ index: index1 }, { index: index2 }] = roomUsers;
+    const gameId = gameManager.playWithBot(id);
+
+    sendResponse(ws, MESSAGE_TYPES.CREATE_GAME, {
+      idGame: gameId,
+      idPlayer: id,
+    });
     return;
   }
 
