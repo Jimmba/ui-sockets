@@ -1,14 +1,115 @@
 import { ATTACK_RESULTS } from "../constants";
+import { GAME_FIELD } from "../constants/game_field.constant";
 import { IPosition, IShip, IUserShip } from "../interfaces";
 export class Player {
   private index: number;
   private ships: IShip[];
   private aliveShips: number = 0;
   private surroundingCells: IPosition[] = [];
+  private gameMap: number[][] = [];
 
   constructor(index: number) {
     this.index = index;
     this.ships = [];
+  }
+
+  private createGameMap() {
+    const row = new Array(10).fill(GAME_FIELD.UNKNOWN);
+    this.gameMap = new Array(10).fill([]).map((el) => [...row]);
+  }
+
+  randomAttack() {
+    const availableFields = this.gameMap.flat().filter((el) => !el).length;
+    const randomField = Math.floor(Math.random() * availableFields);
+
+    let k = 0;
+    for (let i1 = 0; i1 < this.gameMap.length; i1++) {
+      for (let i2 = 0; i2 < this.gameMap[i1].length; i2++) {
+        if (this.gameMap[i1][i2] === GAME_FIELD.UNKNOWN) {
+          if (randomField === k) {
+            return { x: i2, y: i1 }; // row is y
+          }
+          k += 1;
+        }
+      }
+    }
+    return { x: 0, y: 0 }; // default values
+  }
+
+  private markShipAsKilled(y: number, x: number) {
+    const isFieldExist = (x: number, y: number) => {
+      return x >= 0 && x < 10 && y >= 0 && y < 10;
+    };
+
+    const setField = (x: number, y: number, value: GAME_FIELD) => {
+      if (isFieldExist(x, y)) this.gameMap[x][y] = value;
+    };
+
+    this.gameMap[x][y] = GAME_FIELD.KILLED;
+
+    let k = 1;
+    while (isFieldExist(x + k, y)) {
+      setField(x + k, y - 1, GAME_FIELD.MISS);
+      setField(x + k, y + 1, GAME_FIELD.MISS);
+      const value = this.gameMap[x + k][y];
+      if (value !== GAME_FIELD.SHOT) {
+        this.gameMap[x + k][y] = GAME_FIELD.MISS;
+        break;
+      }
+      this.gameMap[x + k][y] = GAME_FIELD.KILLED;
+      k += 1;
+    }
+
+    k = -1;
+    while (isFieldExist(x + k, y)) {
+      setField(x + k, y - 1, GAME_FIELD.MISS);
+      setField(x + k, y + 1, GAME_FIELD.MISS);
+      const value = this.gameMap[x + k][y];
+      if (value !== GAME_FIELD.SHOT) {
+        this.gameMap[x + k][y] = GAME_FIELD.MISS;
+        break;
+      }
+      this.gameMap[x + k][y] = GAME_FIELD.KILLED;
+      k -= 1;
+    }
+
+    k = 1;
+    while (isFieldExist(x, y + k)) {
+      setField(x - 1, y + k, GAME_FIELD.MISS);
+      setField(x + 1, y + k, GAME_FIELD.MISS);
+      const value = this.gameMap[x][y + k];
+      if (value !== GAME_FIELD.SHOT) {
+        this.gameMap[x][y + k] = GAME_FIELD.MISS;
+        break;
+      }
+      this.gameMap[x][y + k] = GAME_FIELD.KILLED;
+      k += 1;
+    }
+
+    k = -1;
+    while (isFieldExist(x, y + k)) {
+      setField(x - 1, y + k, GAME_FIELD.MISS);
+      setField(x + 1, y + k, GAME_FIELD.MISS);
+      const value = this.gameMap[x][y + k];
+      if (value !== GAME_FIELD.SHOT) {
+        this.gameMap[x][y + k] = GAME_FIELD.MISS;
+        break;
+      }
+      this.gameMap[x][y + k] = GAME_FIELD.KILLED;
+      k -= 1;
+    }
+  }
+
+  updateGameMap(hitResult: ATTACK_RESULTS, x: number, y: number) {
+    let fieldValue = GAME_FIELD.MISS;
+    if (hitResult === ATTACK_RESULTS.SHOT) fieldValue = GAME_FIELD.SHOT;
+    if (hitResult === ATTACK_RESULTS.KILLED) {
+      fieldValue = GAME_FIELD.KILLED;
+      this.markShipAsKilled(x, y);
+    }
+    console.log(hitResult, x, y);
+    this.gameMap[y][x] = fieldValue;
+    console.log(this.gameMap);
   }
 
   addShips(ships: IUserShip[]) {
@@ -20,6 +121,7 @@ export class Player {
     });
     this.ships = modifiedShips;
     this.aliveShips = ships.length;
+    this.createGameMap();
   }
 
   getShips(): IUserShip[] {
@@ -136,6 +238,11 @@ export class Game {
   getEnemy(): Player {
     const index1 = this.player1.getIndex();
     return this.activePlayerIndex !== index1 ? this.player1 : this.player2;
+  }
+
+  randomAttack() {
+    const player = this.getEnemy();
+    return player.randomAttack();
   }
 }
 

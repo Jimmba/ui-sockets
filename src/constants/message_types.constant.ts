@@ -12,6 +12,6 @@ export enum MESSAGE_TYPES {
   "FINISH" = "finish",
 
   "ATTACK" = "attack",
-  "RANDOM_ATTACK" = "random_attack",
+  "RANDOM_ATTACK" = "randomAttack",
   "TURN" = "turn",
 }

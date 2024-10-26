@@ -72,6 +72,89 @@ const handleUpdateWinners = () => {
   });
 };
 
+const startGame = (gameId: number) => {
+  const game: Game = gameManager.games[gameId];
+
+  const { player1, player2 } = game.getPlayers();
+  const playersIndexes = [player1.getIndex(), player2.getIndex()];
+  const turnData = {
+    currentPlayer: game.getActivePlayerIndex(),
+  };
+
+  playersIndexes.forEach((playersIndex) => {
+    const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
+    const data = gameManager.getPlayerShips(gameId, playersIndex);
+    sendResponse(socket, MESSAGE_TYPES.START_GAME, {
+      ships: data,
+      currentPlayerIndex: game.getActivePlayerIndex(),
+    });
+    sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
+  });
+};
+
+const handleAttack = (game: Game, x: number, y: number) => {
+  const enemy = game.getEnemy();
+  const shootResult = enemy.checkShot(x, y);
+  enemy.updateGameMap(shootResult, x, y);
+
+  const getAttackData = (x: number, y: number, shootResult: ATTACK_RESULTS) => {
+    return {
+      position: {
+        x,
+        y,
+      },
+      currentPlayer: game.getActivePlayerIndex(),
+      status: shootResult,
+    };
+  };
+
+  const isMissed = shootResult === ATTACK_RESULTS.MISS;
+
+  const attackData = getAttackData(x, y, shootResult);
+  if (isMissed) game.changeActivePlayer();
+  console.log(game.getActivePlayerIndex());
+
+  const turnData = {
+    currentPlayer: game.getActivePlayerIndex(),
+  };
+
+  const isKilled = shootResult === ATTACK_RESULTS.KILLED;
+  const isFinished = isKilled && enemy.isAllShipsKilled();
+
+  const { player1, player2 } = game.getPlayers();
+  const playersIndexes = [player1.getIndex(), player2.getIndex()];
+  const surroundingCells = isKilled ? enemy.getSurroundingCellsAndReset() : [];
+
+  const playerId = game.getActivePlayerIndex();
+  playersIndexes.forEach((playersIndex) => {
+    const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
+    sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
+    sendResponse(socket, MESSAGE_TYPES.ATTACK, attackData);
+
+    if (isKilled) {
+      surroundingCells.forEach((position) => {
+        const { x, y } = position;
+        sendResponse(
+          socket,
+          MESSAGE_TYPES.ATTACK,
+          getAttackData(x, y, ATTACK_RESULTS.MISS)
+        );
+      });
+    }
+
+    if (isFinished) {
+      sendResponse(socket, MESSAGE_TYPES.FINISH, {
+        winPlayer: playerId,
+      });
+    }
+  });
+
+  if (isFinished) {
+    playersManager.addWin(playerId);
+    handleUpdateWinners();
+  }
+};
+
 const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
   const { type, data } = regRequest;
   console.warn(`[GET] TYPE: ${type}, MESSAGE ${data}`);
@@ -105,24 +188,7 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
     gameManager.addPlayerShips(gameId, indexPlayer, ships);
     const isStartGame = gameManager.isStartGame(gameId);
     if (!isStartGame) return;
-
-    const game: Game = gameManager.games[gameId];
-
-    const { player1, player2 } = game.getPlayers();
-    const playersIndexes = [player1.getIndex(), player2.getIndex()];
-    const turnData = {
-      currentPlayer: game.getActivePlayerIndex(),
-    };
-
-    playersIndexes.forEach((playersIndex) => {
-      const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
-      const data = gameManager.getPlayerShips(gameId, playersIndex);
-      sendResponse(socket, MESSAGE_TYPES.START_GAME, {
-        ships: data,
-        currentPlayerIndex: game.getActivePlayerIndex(),
-      });
-      sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
-    });
+    startGame(gameId);
     return;
   }
 
@@ -132,71 +198,18 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
     const activePlayer = game.getActivePlayerIndex();
     if (activePlayer !== indexPlayer) return;
 
-    const enemy = game.getEnemy();
-    const shootResult = enemy.checkShot(x, y);
+    handleAttack(game, x, y);
+    return;
+  }
 
-    const getAttackData = (
-      x: number,
-      y: number,
-      shootResult: ATTACK_RESULTS
-    ) => {
-      return {
-        position: {
-          x,
-          y,
-        },
-        currentPlayer: game.getActivePlayerIndex(),
-        status: shootResult,
-      };
-    };
-
-    const isMissed = shootResult === ATTACK_RESULTS.MISS;
-
-    const attackData = getAttackData(x, y, shootResult);
-    if (isMissed) game.changeActivePlayer();
-    console.log(game.getActivePlayerIndex());
-
-    const turnData = {
-      currentPlayer: game.getActivePlayerIndex(),
-    };
-
-    const isKilled = shootResult === ATTACK_RESULTS.KILLED;
-    const isFinished = isKilled && enemy.isAllShipsKilled();
-
-    const { player1, player2 } = game.getPlayers();
-    const playersIndexes = [player1.getIndex(), player2.getIndex()];
-    const surroundingCells = isKilled
-      ? enemy.getSurroundingCellsAndReset()
-      : [];
-
-    const playerId = game.getActivePlayerIndex();
-    playersIndexes.forEach((playersIndex) => {
-      const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
-      sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
-      sendResponse(socket, MESSAGE_TYPES.ATTACK, attackData);
-
-      if (isKilled) {
-        surroundingCells.forEach((position) => {
-          const { x, y } = position;
-          sendResponse(
-            socket,
-            MESSAGE_TYPES.ATTACK,
-            getAttackData(x, y, ATTACK_RESULTS.MISS)
-          );
-        });
-      }
-
-      if (isFinished) {
-        sendResponse(socket, MESSAGE_TYPES.FINISH, {
-          winPlayer: playerId,
-        });
-      }
-    });
-
-    if (isFinished) {
-      playersManager.addWin(playerId);
-      handleUpdateWinners();
-    }
+  if (type === MESSAGE_TYPES.RANDOM_ATTACK) {
+    const { gameId, indexPlayer } = parsedData;
+    const game: Game = gameManager.games[gameId];
+    const activePlayer = game.getActivePlayerIndex();
+    if (activePlayer !== indexPlayer) return;
+    const { x, y } = game.randomAttack();
+    console.log(`random attack `, x, y);
+    handleAttack(game, x, y);
     return;
   }
 
