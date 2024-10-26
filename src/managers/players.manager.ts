@@ -51,6 +51,7 @@ export class PlayersManager {
       );
     }
 
+    savedPlayer.socket = ws;
     return this.getData(savedPlayer);
   }
 
@@ -70,7 +71,7 @@ export class PlayersManager {
     return player;
   }
 
-  getPlayerSocketByIndex(index: number): IPlayer {
+  getPlayerByIndex(index: number): IPlayer {
     const [player] = this.players.filter((player) => {
       const { id } = player;
       return index === id;
@@ -95,11 +96,8 @@ export class PlayersManager {
     });
   }
 
-  disconnect(ws: WebSocket): void {
-    // TODO
-    // this.players = this.players.filter((player) => {
-    //   const { socket } = player;
-    //   return ws !== socket;
-    // });
+  removeSocket(index: number): void {
+    const user = this.getPlayerByIndex(index);
+    user.socket = null;
   }
 }

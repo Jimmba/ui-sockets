@@ -12,10 +12,11 @@ export const getResponse = <T>(type: MESSAGE_TYPES, data: T): string => {
 };
 
 export const sendResponse = <T>(
-  ws: WebSocket,
+  ws: WebSocket | null,
   type: MESSAGE_TYPES,
   data: T
 ) => {
+  if (!ws) return;
   const response = getResponse(type, data);
   console.warn(`[SEND] TYPE: ${type}, MESSAGE ${response}`);
 

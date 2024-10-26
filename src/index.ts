@@ -1,9 +1,14 @@
 import { WebSocket, WebSocketServer } from "ws";
-import { IRoomPlayer, PlayersManager, RoomsManager } from "./managers";
-import { IData, IPlayerRequest, IPlayerResponse, IShip } from "./interfaces";
+import {
+  Game,
+  GameManager,
+  IRoomPlayer,
+  PlayersManager,
+  RoomsManager,
+} from "./managers";
+import { IData, IPlayerRequest, IPlayerResponse } from "./interfaces";
 import { ATTACK_RESULTS, BOT_ID, MESSAGE_TYPES } from "./constants";
 import { sendResponse } from "./helpers";
-import { Game, GameManager } from "./managers/game.manager";
 
 const PORT = 3000; //! .env?
 
@@ -31,15 +36,16 @@ const handleUpdateRoomRequest = (): void => {
   });
 };
 
-const handleCreateRoomRequest = (ws: WebSocket, player: IRoomPlayer): void => {
-  roomsManager.createRoom(player); //! show message?
-};
-
 const handleAddPlayerToRoomRequest = (
-  ws: WebSocket,
   indexRoom: number,
   player: IRoomPlayer
 ): void => {
+  const isNewUser = roomsManager.isNewUser(indexRoom, player);
+  if (!isNewUser) return;
+
+  const { index: id } = player;
+  roomsManager.removeRoomByUserId(id);
+
   const { roomUsers } = roomsManager.getRoomToStartGame(indexRoom, player); //! show message?
 
   handleUpdateRoomRequest();
@@ -79,7 +85,7 @@ const startGame = (gameId: number) => {
   playersIndexes
     .filter((index) => index !== BOT_ID)
     .forEach((playersIndex) => {
-      const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
+      const { socket } = playersManager.getPlayerByIndex(playersIndex);
       const data = gameManager.getPlayerShips(gameId, playersIndex);
       sendResponse(socket, MESSAGE_TYPES.START_GAME, {
         ships: data,
@@ -126,7 +132,7 @@ const handleAttack = (game: Game, x: number, y: number) => {
   playersIndexes
     .filter((index) => index !== BOT_ID)
     .forEach((playersIndex) => {
-      const { socket } = playersManager.getPlayerSocketByIndex(playersIndex);
+      const { socket } = playersManager.getPlayerByIndex(playersIndex);
       sendResponse(socket, MESSAGE_TYPES.TURN, turnData);
       sendResponse(socket, MESSAGE_TYPES.ATTACK, attackData);
 
@@ -174,8 +180,9 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
 
   if (type === MESSAGE_TYPES.CREATE_ROOM) {
     const { name, id: index } = playersManager.getPlayerBySocket(ws);
-
-    handleCreateRoomRequest(ws, { name, index });
+    const isRoomExist = roomsManager.isRoomExistByUserId(index);
+    if (isRoomExist) return;
+    roomsManager.createRoom({ name, index }); //! show message?
     handleUpdateRoomRequest();
     return;
   }
@@ -183,7 +190,7 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
   if (type === MESSAGE_TYPES.ADD_USER_TO_ROOM) {
     const { name, id: index } = playersManager.getPlayerBySocket(ws);
     const { indexRoom } = parsedData;
-    handleAddPlayerToRoomRequest(ws, indexRoom, { name, index });
+    handleAddPlayerToRoomRequest(indexRoom, { name, index });
     return;
   }
 
@@ -219,9 +226,9 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
 
   if (type === MESSAGE_TYPES.PLAY_WITH_BOT) {
     const { id } = playersManager.getPlayerBySocket(ws);
-    // const [{ index: index1 }, { index: index2 }] = roomUsers;
+    roomsManager.removeRoomByUserId(id);
     const gameId = gameManager.playWithBot(id);
-
+    handleUpdateRoomRequest();
     sendResponse(ws, MESSAGE_TYPES.CREATE_GAME, {
       idGame: gameId,
       idPlayer: id,
@@ -229,8 +236,7 @@ const handleMessage = (ws: WebSocket, regRequest: IData<string>): void => {
     return;
   }
 
-  console.log(type);
-  ws.send("Type is not found"); //! refactor
+  ws.send("Type is not found");
 };
 
 wss.on("connection", function connection(ws: WebSocket) {
@@ -241,12 +247,15 @@ wss.on("connection", function connection(ws: WebSocket) {
     return handleMessage(ws, data);
   });
 
-  ws.on("disconnect", () => {
-    console.log("OOOPS! Cliend disconnected"); //! remove?
-  });
-
   ws.on("close", () => {
-    playersManager.disconnect(ws);
+    const player = playersManager.getPlayerBySocket(ws);
+    if (!player) return;
+    const { id } = player;
+    roomsManager.removeRoomByUserId(id);
+    // gameManager.finishUserGame(id);
+    handleUpdateRoomRequest();
+
+    playersManager.removeSocket(id);
     console.log("Cliend disconnected");
   });
 });

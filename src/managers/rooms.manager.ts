@@ -1,8 +1,5 @@
-import WebSocket from "ws";
-import { IPlayer, IPlayerRequest, IPlayerResponse } from "../interfaces";
-
+//! replace interfaces
 export interface IRoomPlayer {
-  //! replace interfaces
   name: string;
   index: number; //! types
 }
@@ -25,12 +22,46 @@ export class RoomsManager {
     return this.rooms; //! exclude himself
   }
 
+  isRoomExistByUserId(index: number) {
+    const userRooms = this.rooms.filter((room) => {
+      const { roomUsers } = room;
+      for (let i = 0; i < roomUsers.length; i += 1) {
+        const { index: savedIndex } = roomUsers[i];
+        if (index === savedIndex) return true;
+        return false;
+      }
+    });
+    return userRooms.length ? true : false;
+  }
+
   createRoom(player: IRoomPlayer) {
     const room = {
       roomId: this.id++,
       roomUsers: [player],
     };
     this.rooms.push(room);
+    console.log(this.rooms);
+  }
+
+  removeRoomByUserId(index: number) {
+    this.rooms = this.rooms.filter((room) => {
+      const { roomUsers } = room;
+      for (let i = 0; i < roomUsers.length; i += 1) {
+        const { index: savedIndex } = roomUsers[i];
+        if (index === savedIndex) return false;
+        return true;
+      }
+    });
+    console.log(this.rooms);
+  }
+
+  isNewUser(index: number, player: IRoomPlayer): boolean {
+    const [roomToAdd] = this.rooms.filter((room) => {
+      const { roomId } = room;
+      return roomId === index;
+    });
+    const [waitPlayer] = roomToAdd.roomUsers;
+    return player.index !== waitPlayer.index;
   }
 
   getRoomToStartGame(index: number, player: IRoomPlayer): IRoom {
@@ -41,7 +72,6 @@ export class RoomsManager {
     roomToAdd.roomUsers.push(player);
 
     this.rooms = this.rooms.filter((room) => {
-      //! refactor
       const { roomId } = room;
       return roomId !== index;
     });

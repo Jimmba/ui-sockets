@@ -2,7 +2,7 @@ import { WebSocket } from "ws";
 
 export interface IPlayer {
   id: number; //! which should be?
-  socket: WebSocket;
+  socket: WebSocket | null;
   name: string;
   password: string;
   wins: number;
