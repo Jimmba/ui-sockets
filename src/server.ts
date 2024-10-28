@@ -260,17 +260,17 @@ export const startServer = (port: number) => {
       if (!player) return;
       const { id, name } = player;
       roomsStorage.removeRoomByUserId(id);
-      const playerId = gamesStorage.finishGameWithUserAndReturnWinnerId(id);
-
-      if (!playerId || playerId === BOT_ID) return;
-      const { socket } = playersStorage.getPlayerByIndex(playerId);
-
-      sendResponse(socket, MESSAGE_TYPES.FINISH, {
-        winPlayer: playerId,
-      });
-      playersStorage.addWin(playerId);
-      handleUpdateWinners();
-      handleUpdateRoomRequest();
+      const winnerId = gamesStorage.finishGameWithUserAndReturnWinnerId(id);
+      console.log(winnerId !== null && winnerId !== BOT_ID);
+      if (winnerId !== null && winnerId !== BOT_ID) {
+        const { socket } = playersStorage.getPlayerByIndex(winnerId);
+        sendResponse(socket, MESSAGE_TYPES.FINISH, {
+          winPlayer: winnerId,
+        });
+        playersStorage.addWin(winnerId);
+        handleUpdateWinners();
+        handleUpdateRoomRequest();
+      }
 
       playersStorage.removeSocket(id);
       console.warn(`Client ${name} disconnected`);

@@ -39,7 +39,7 @@ export class GamesStorage {
     return game.isReadyToStart();
   }
 
-  finishGameWithUserAndReturnWinnerId(playerIndex: number): number {
+  finishGameWithUserAndReturnWinnerId(playerIndex: number): number | null {
     const games = Object.values(this.games);
     for (let i = 0; i < games.length; i += 1) {
       const game = games[i];
@@ -56,7 +56,7 @@ export class GamesStorage {
         return index1;
       }
     }
-    return 0;
+    return null;
   }
 
   private getPlayer(gameId: number, playerId: number): Player {
