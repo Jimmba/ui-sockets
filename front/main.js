@@ -16256,7 +16256,7 @@
             ci,
             { loop: !0, id: "myVideo", autoPlay: !0, muted: !0 },
             e.createElement("source", {
-              src: "../../front/public/assets/mp4/bg3-1.mp4",
+              src: "../front/public/assets/mp4/bg3-1.mp4",
               type: "video/mp4",
             })
           ),
