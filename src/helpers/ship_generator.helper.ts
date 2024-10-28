@@ -1,19 +1,10 @@
-import { SHIP_TYPES } from "../constants";
+import { GAME_FIELD_SIZE, SHIPS_DATA } from "../constants";
 import { IPosition, IUserShip } from "../interfaces";
-
-const SHIPS_DATA = [
-  { type: SHIP_TYPES.HUGE, length: 4, count: 1 },
-  { type: SHIP_TYPES.LARGE, length: 3, count: 2 },
-  { type: SHIP_TYPES.MEDIUM, length: 2, count: 3 },
-  { type: SHIP_TYPES.SMALL, length: 1, count: 4 },
-];
-
-const MAP_SIZE = 10;
 
 const generateRandomPosition = (): IPosition => {
   return {
-    x: Math.floor(Math.random() * MAP_SIZE),
-    y: Math.floor(Math.random() * MAP_SIZE),
+    x: Math.floor(Math.random() * GAME_FIELD_SIZE),
+    y: Math.floor(Math.random() * GAME_FIELD_SIZE),
   };
 };
 
@@ -77,8 +68,8 @@ const placeShip = (gameMap: number[][], ship: IUserShip) => {
 };
 
 export const generateShips = (): IUserShip[] => {
-  const gameMap = Array.from({ length: MAP_SIZE }, () =>
-    Array(MAP_SIZE).fill(0)
+  const gameMap = Array.from({ length: GAME_FIELD_SIZE }, () =>
+    Array(GAME_FIELD_SIZE).fill(0)
   );
   const ships: IUserShip[] = [];
 

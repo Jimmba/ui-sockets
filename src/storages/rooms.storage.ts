@@ -1,15 +1,6 @@
-//! replace interfaces
-export interface IRoomPlayer {
-  name: string;
-  index: number; //! types
-}
+import { IRoom, IRoomPlayer } from "../interfaces";
 
-interface IRoom {
-  roomId: number | string;
-  roomUsers: IRoomPlayer[];
-}
-
-export class RoomsManager {
+export class RoomsStorage {
   rooms: IRoom[];
   id: number;
 
@@ -18,11 +9,11 @@ export class RoomsManager {
     this.id = 1;
   }
 
-  updateRoom() {
+  updateRoom(): IRoom[] {
     return this.rooms;
   }
 
-  isRoomExistByUserId(index: number) {
+  isRoomExistByUserId(index: number): boolean {
     const userRooms = this.rooms.filter((room) => {
       const { roomUsers } = room;
       for (let i = 0; i < roomUsers.length; i += 1) {
@@ -34,7 +25,7 @@ export class RoomsManager {
     return userRooms.length ? true : false;
   }
 
-  createRoom(player: IRoomPlayer) {
+  createRoom(player: IRoomPlayer): void {
     const room = {
       roomId: this.id++,
       roomUsers: [player],
@@ -42,7 +33,7 @@ export class RoomsManager {
     this.rooms.push(room);
   }
 
-  removeRoomByUserId(index: number) {
+  removeRoomByUserId(index: number): void {
     this.rooms = this.rooms.filter((room) => {
       const { roomUsers } = room;
       for (let i = 0; i < roomUsers.length; i += 1) {

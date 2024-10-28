@@ -1,8 +1,12 @@
-import { SHIP_TYPES } from "../constants";
+import { ATTACK_RESULTS, SHIP_TYPES } from "../constants";
 
 export interface IPosition {
   x: number;
   y: number;
+}
+
+export interface ICellStatus extends IPosition {
+  status: ATTACK_RESULTS;
 }
 export interface IUserShip {
   position: IPosition;

@@ -15,7 +15,7 @@ export const sendResponse = <T>(
   ws: WebSocket | null,
   type: MESSAGE_TYPES,
   data: T
-) => {
+): void => {
   if (!ws) return;
   const response = getResponse(type, data);
   console.warn(`[SEND] TYPE: ${type}, MESSAGE ${response}`);

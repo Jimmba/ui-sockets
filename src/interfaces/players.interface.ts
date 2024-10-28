@@ -1,7 +1,7 @@
 import { WebSocket } from "ws";
 
 export interface IPlayer {
-  id: number; //! which should be?
+  id: number;
   socket: WebSocket | null;
   name: string;
   password: string;
@@ -18,4 +18,9 @@ export interface IPlayerResponse {
   index: number | string;
   error: boolean;
   errorText: string;
+}
+
+export interface IWinner {
+  name: string;
+  wins: number;
 }

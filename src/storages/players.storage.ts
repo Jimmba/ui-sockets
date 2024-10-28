@@ -1,10 +1,15 @@
 import WebSocket from "ws";
-import { IPlayer, IPlayerRequest, IPlayerResponse } from "../interfaces";
-import { IRoomPlayer } from "./rooms.manager";
+import {
+  IPlayer,
+  IPlayerRequest,
+  IPlayerResponse,
+  IWinner,
+} from "../interfaces";
+import { USER_MESSAGES } from "../constants";
 
-export class PlayersManager {
-  players: IPlayer[];
-  id: number;
+export class PlayersStorage {
+  private players: IPlayer[];
+  private id: number;
 
   constructor() {
     this.players = [];
@@ -19,6 +24,10 @@ export class PlayersManager {
       error: errorText ? true : false,
       errorText: errorText || "",
     };
+  }
+
+  getPlayers() {
+    return this.players;
   }
 
   handleRequest(ws: WebSocket, data: IPlayerRequest): IPlayerResponse {
@@ -45,10 +54,7 @@ export class PlayersManager {
     const { password: savedPassword } = savedPlayer;
 
     if (password !== savedPassword) {
-      return this.getData(
-        savedPlayer,
-        "Player already exists. Password is incorrect" //! refactor
-      );
+      return this.getData(savedPlayer, USER_MESSAGES.INCORRECT_PASSWORD);
     }
 
     savedPlayer.socket = ws;
@@ -89,11 +95,19 @@ export class PlayersManager {
     });
   }
 
-  getWinners() {
-    return this.players.map((player) => {
-      const { name, wins } = player;
-      return { name, wins };
-    });
+  getWinners(): IWinner[] {
+    return this.players
+      .map((player) => {
+        const { name, wins } = player;
+        return { name, wins };
+      })
+      .sort((player1, player2) => {
+        const { wins: wins1 } = player1;
+        const { wins: wins2 } = player2;
+        if (wins1 > wins2) return -1;
+        if (wins1 < wins2) return 1;
+        return 0;
+      });
   }
 
   removeSocket(index: number): void {
