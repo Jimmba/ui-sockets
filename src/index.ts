@@ -1,3 +1,5 @@
+import { config } from "dotenv";
+config();
 import { startServer } from "./server";
 import { startApplication } from "./application";
 import {
@@ -6,8 +8,8 @@ import {
   WEBSOCKET_MESSAGES,
 } from "./constants";
 
-const APPLICATION_PORT = 8181;
-const SERVER_PORT = 3000;
+const APPLICATION_PORT = parseInt(process.env.APPLICATION_PORT || "8181", 10);
+const SERVER_PORT = parseInt(process.env.SERVER_PORT || "3000", 10);
 
 const wss = startServer(SERVER_PORT);
 const server = startApplication(APPLICATION_PORT);
