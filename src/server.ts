@@ -191,7 +191,7 @@ export const startServer = (port: number) => {
       const { name, id: index } = playersStorage.getPlayerBySocket(ws);
       const isRoomExist = roomsStorage.isRoomExistByUserId(index);
       if (isRoomExist) return;
-      roomsStorage.createRoom({ name, index }); //! show message?
+      roomsStorage.createRoom({ name, index });
       handleUpdateRoomRequest();
       return;
     }
@@ -261,7 +261,7 @@ export const startServer = (port: number) => {
       const { id, name } = player;
       roomsStorage.removeRoomByUserId(id);
       const winnerId = gamesStorage.finishGameWithUserAndReturnWinnerId(id);
-      console.log(winnerId !== null && winnerId !== BOT_ID);
+      
       if (winnerId !== null && winnerId !== BOT_ID) {
         const { socket } = playersStorage.getPlayerByIndex(winnerId);
         sendResponse(socket, MESSAGE_TYPES.FINISH, {
