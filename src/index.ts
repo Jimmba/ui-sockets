@@ -17,21 +17,25 @@ const server = startApplication(APPLICATION_PORT);
 const shutdown = () => {
   console.warn(SERVER_MESSAGES.SHUTDOWN);
 
+  wss.clients.forEach((ws) => {
+    ws.terminate();
+  });
+
   wss.close((err) => {
     if (err) {
       console.error(WEBSOCKET_MESSAGES.ERROR, err);
     } else {
       console.warn(WEBSOCKET_MESSAGES.CLOSED);
     }
-  });
 
-  server.close((err) => {
-    if (err) {
-      console.error(HTTP_MESSAGES.ERROR, err);
-    } else {
-      console.warn(HTTP_MESSAGES.CLOSED);
+    server.close((err) => {
+      if (err) {
+        console.error(HTTP_MESSAGES.ERROR, err);
+      } else {
+        console.warn(HTTP_MESSAGES.CLOSED);
+      }
       process.exit(0);
-    }
+    });
   });
 };
 
